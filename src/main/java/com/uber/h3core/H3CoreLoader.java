@@ -111,7 +111,14 @@ public final class H3CoreLoader {
         // loading the shared object at the same time, bad things could happen.
 
         if (libraryFile == null) {
-            final String dirName = String.format("%s-%s", os.getDirName(), arch);
+            final String dirName;
+            if (os == OperatingSystem.ANDROID && arch == ARCH_ARM) {
+                dirName = "armeabi-v7a";
+            } else if (os == OperatingSystem.ANDROID && arch == ARCH_ARM64) {
+                dirName = "arm64-v8a";
+            } else {
+                dirName = String.format("%s-%s", os.getDirName(), arch);
+            }
             final String libName = String.format("libh3-java%s", os.getSuffix());
 
             final File newLibraryFile = File.createTempFile("libh3-java", os.getSuffix());

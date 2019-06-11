@@ -84,23 +84,6 @@ cp h3-java-build/build/binding-functions .
 
 popd # target
 
-# Copy the built artifact for this platform.
-case "$(uname -sm)" in
-    "Linux x86_64")  LIBRARY_DIR=linux-x64 ;;
-    "Linux i386")    LIBRARY_DIR=linux-x86 ;;
-    "Linux i486")    LIBRARY_DIR=linux-x86 ;;
-    "Linux i586")    LIBRARY_DIR=linux-x86 ;;
-    "Linux i686")    LIBRARY_DIR=linux-x86 ;;
-    "Linux i786")    LIBRARY_DIR=linux-x86 ;;
-    "Linux i886")    LIBRARY_DIR=linux-x86 ;;
-    "Darwin x86_64") LIBRARY_DIR=darwin-x64 ;;
-    # TODO: Detect others
-    *)               LIBRARY_DIR="" ;;
-esac
-
-mkdir -p src/main/resources/$LIBRARY_DIR
-cp target/h3-java-build/lib/libh3-java* src/main/resources/$LIBRARY_DIR
-
 #
 # Now that H3 is downloaded, build H3-Java's native library for other platforms.
 #
@@ -128,7 +111,8 @@ for image in android-arm android-arm64; do
 
     # Copy the built artifact into the source tree so it can be included in the
     # built JAR.
-    OUTPUT_ROOT=src/main/resources/$image
+    if [ "$image" = "android-arm" ]; then OUTPUT_ROOT=src/main/resources/lib/armeabi-v7a; fi
+    if [ "$image" = "android-arm64" ]; then OUTPUT_ROOT=src/main/resources/lib/arm64-v8a; fi
     mkdir -p $OUTPUT_ROOT
     if [ -e $BUILD_ROOT/lib/libh3-java.so ]; then cp $BUILD_ROOT/lib/libh3-java.so $OUTPUT_ROOT ; fi
     if [ -e $BUILD_ROOT/lib/libh3-java.dylib ]; then cp $BUILD_ROOT/lib/libh3-java.dylib $OUTPUT_ROOT ; fi
