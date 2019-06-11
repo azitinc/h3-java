@@ -16,6 +16,7 @@
 package com.uber.h3core;
 
 import com.uber.h3core.exceptions.DistanceUndefinedException;
+import com.uber.h3core.exceptions.LineUndefinedException;
 import com.uber.h3core.exceptions.LocalIjUndefinedException;
 import com.uber.h3core.exceptions.PentagonEncounteredException;
 import com.uber.h3core.util.CoordIJ;
@@ -42,6 +43,7 @@ public class H3Core {
      * Maximum number of vertices for an H3 index
      */
     private static final int MAX_CELL_BNDRY_VERTS = 10;
+    private static final int NUM_BASE_CELLS = 122;
 
     // Constants for the resolution bits in an H3 index.
     private static final long H3_RES_OFFSET = 52L;
@@ -566,6 +568,77 @@ public class H3Core {
     }
 
     /**
+     * Given two H3 indexes, return the line of indexes between them (inclusive
+     * of endpoints).
+     *
+     * <p>This function may fail to find the line between two indexes, for
+     * example if they are very far apart. It may also fail when finding
+     * distances for indexes on opposite sides of a pentagon.
+     *
+     * <p>Notes:
+     *
+     * <ul>
+     *     <li>The specific output of this function should not be considered stable
+     *         across library versions. The only guarantees the library provides are
+     *         that the line length will be `h3Distance(start, end) + 1` and that
+     *         every index in the line will be a neighbor of the preceding index.</li>
+     *     <li>Lines are drawn in grid space, and may not correspond exactly to either
+     *         Cartesian lines or great arcs.</li>
+     * </ul>
+     *
+     * @param startAddress Start index of the line
+     * @param endAddress End index of the line
+     * @return Indexes making up the line.
+     * @throws LineUndefinedException The line could not be computed.
+     */
+    public List<String> h3Line(String startAddress, String endAddress) throws LineUndefinedException {
+        return h3ToStringList(h3Line(stringToH3(startAddress), stringToH3(endAddress)));
+    }
+
+    /**
+     * Given two H3 indexes, return the line of indexes between them (inclusive
+     * of endpoints).
+     *
+     * <p>This function may fail to find the line between two indexes, for
+     * example if they are very far apart. It may also fail when finding
+     * distances for indexes on opposite sides of a pentagon.
+     *
+     * <p>Notes:
+     *
+     * <ul>
+     *     <li>The specific output of this function should not be considered stable
+     *         across library versions. The only guarantees the library provides are
+     *         that the line length will be `h3Distance(start, end) + 1` and that
+     *         every index in the line will be a neighbor of the preceding index.</li>
+     *     <li>Lines are drawn in grid space, and may not correspond exactly to either
+     *         Cartesian lines or great arcs.</li>
+     * </ul>
+     *
+     * @param start Start index of the line
+     * @param end End index of the line
+     * @return Indexes making up the line.
+     * @throws LineUndefinedException The line could not be computed.
+     */
+    public List<Long> h3Line(long start, long end) throws LineUndefinedException {
+        int size = h3Api.h3LineSize(start, end);
+
+        if (size < 0) {
+            throw new LineUndefinedException("Could not compute line size between cells");
+        }
+
+        long[] results = new long[size];
+        int result = h3Api.h3Line(start, end, results);
+        if (result != 0) {
+            // This should be unreachable since the only case in the library
+            // that could return non-zero would require h3Distance to return
+            // different results between calls.
+            throw new LineUndefinedException("Could not compute line between cells");
+        }
+
+        return nonZeroLongArrayToList(results);
+    }
+
+    /**
      * Finds indexes within the given geofence.
      *
      * @param points Outline geofence
@@ -702,7 +775,6 @@ public class H3Core {
      * @throws IllegalArgumentException <code>res</code> is not between 0 and the resolution of <code>h3</code>, inclusive.
      */
     public long h3ToParent(long h3, int res) {
-        checkResolution(res);
         // This is a ported version of h3ToParent from h3core.
 
         int childRes = (int) ((h3 & H3_RES_MASK) >> H3_RES_OFFSET);
@@ -897,6 +969,22 @@ public class H3Core {
     }
 
     /**
+     * Returns a collection of all base cells (H3 indexes are resolution 0).
+     */
+    public Collection<String> getRes0IndexesAddresses() {
+        return h3ToStringList(getRes0Indexes());
+    }
+
+    /**
+     * Returns a collection of all base cells (H3 indexes are resolution 0).
+     */
+    public Collection<Long> getRes0Indexes() {
+        long[] indexes = new long[NUM_BASE_CELLS];
+        h3Api.getRes0Indexes(indexes);
+        return nonZeroLongArrayToList(indexes);
+    }
+
+    /**
      * Returns <code>true</code> if the two indexes are neighbors.
      */
     public boolean h3IndexesAreNeighbors(long a, long b) {
@@ -1053,8 +1141,8 @@ public class H3Core {
      * Transforms a list of H3 indexes in long form to a list of H3
      * indexes in string form.
      */
-    private List<String> h3ToStringList(List<Long> list) {
-        return list.stream()
+    private List<String> h3ToStringList(Collection<Long> collection) {
+        return collection.stream()
                 .map(this::h3ToString)
                 .collect(Collectors.toList());
     }

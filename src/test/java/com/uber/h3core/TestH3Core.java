@@ -18,6 +18,7 @@ package com.uber.h3core;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.uber.h3core.exceptions.DistanceUndefinedException;
+import com.uber.h3core.exceptions.LineUndefinedException;
 import com.uber.h3core.exceptions.LocalIjUndefinedException;
 import com.uber.h3core.exceptions.PentagonEncounteredException;
 import com.uber.h3core.util.CoordIJ;
@@ -587,6 +588,15 @@ public class TestH3Core {
     }
 
     @Test
+    public void testHexRingSingle() throws PentagonEncounteredException {
+        String origin = "8928308280fffff";
+        List<String> hexagons = h3.hexRing(origin, 0);
+
+        assertEquals(1, hexagons.size());
+        assertEquals("8928308280fffff", hexagons.get(0));
+    }
+
+    @Test
     public void testHostileInput() {
         assertNotEquals(0, h3.geoToH3(-987654321, 987654321, 5));
         assertNotEquals(0, h3.geoToH3(987654321, -987654321, 5));
@@ -759,6 +769,21 @@ public class TestH3Core {
         }
     }
 
+    @Test
+    public void testGetRes0Indexes() {
+        Collection<String> indexesAddresses = h3.getRes0IndexesAddresses();
+        Collection<Long> indexes = h3.getRes0Indexes();
+
+        assertEquals("Both signatures return the same results (size)", indexes.size(), indexesAddresses.size());
+
+        for (Long index : indexes) {
+            assertEquals("Index is unique", 1, indexes.stream().filter(i -> i.equals(index)).count());
+            assertTrue("Index is valid", h3.h3IsValid(index));
+            assertEquals("Index is res 0", 0, h3.h3GetResolution(index));
+            assertTrue("Both signatures return the same results", indexesAddresses.contains(h3.h3ToString(index)));
+        }
+    }
+
     @Test(expected = IllegalArgumentException.class)
     public void testConstantsInvalid() {
         h3.hexArea(-1, AreaUnit.km2);
@@ -831,9 +856,14 @@ public class TestH3Core {
                 .forEach(h -> assertEquals(3, h3.h3GetResolution(h)));
     }
 
+    @Test
+    public void testUncompactZero() {
+        assertEquals(0, h3.uncompactAddress(ImmutableList.of("0"), 3).size());
+    }
+
     @Test(expected = RuntimeException.class)
     public void testUncompactInvalid() {
-        h3.uncompactAddress(ImmutableList.of("0"), 3);
+        h3.uncompactAddress(ImmutableList.of("85283473fffffff"), 4);
     }
 
     @Test
@@ -960,5 +990,34 @@ public class TestH3Core {
     @Test(expected = LocalIjUndefinedException.class)
     public void testExperimentalLocalIjToH3TooFar() throws LocalIjUndefinedException {
         h3.experimentalLocalIjToH3("8049fffffffffff", new CoordIJ(2, 0));
+    }
+
+    @Test
+    public void testH3Line() throws LineUndefinedException, DistanceUndefinedException {
+        for (int res = 0; res < 12; res++) {
+            String origin = h3.geoToH3Address(37.5, -122, res);
+            String destination = h3.geoToH3Address(25, -120, res);
+
+            List<String> line = h3.h3Line(origin, destination);
+            int distance = h3.h3Distance(origin, destination);
+
+            // Need to add 1 to account for the origin as well
+            assertEquals("Distance matches expected", distance + 1, line.size());
+
+            for (int i = 1; i < line.size(); i++) {
+                assertTrue("Every index in the line is a neighbor of the previous", h3.h3IndexesAreNeighbors(line.get(i - 1), line.get(i)));
+            }
+
+            assertTrue("Line contains start", line.contains(origin));
+            assertTrue("Line contains destination", line.contains(destination));
+        }
+    }
+
+    @Test(expected = LineUndefinedException.class)
+    public void testH3LineFailed() throws LineUndefinedException {
+        long origin = h3.geoToH3(37.5, -122, 9);
+        long destination = h3.geoToH3(37.5, -122, 10);
+
+        h3.h3Line(origin, destination);
     }
 }

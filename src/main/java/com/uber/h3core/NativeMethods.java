@@ -15,7 +15,6 @@
  */
 package com.uber.h3core;
 
-import com.uber.h3core.util.CoordIJ;
 import com.uber.h3core.util.GeoCoord;
 
 import java.util.ArrayList;
@@ -27,7 +26,7 @@ import java.util.List;
  */
 final class NativeMethods {
     NativeMethods() {
-        // Prevent instantiation
+        // Only H3CoreLoader is expected to instantiate
     }
 
     native int maxH3ToChildrenSize(long h3, int childRes);
@@ -49,6 +48,8 @@ final class NativeMethods {
     native int h3Distance(long a, long b);
     native int experimentalH3ToLocalIj(long origin, long h3, int[] coords);
     native long experimentalLocalIjToH3(long origin, int i, int j);
+    native int h3LineSize(long start, long end);
+    native int h3Line(long start, long end, long[] results);
 
     native int maxPolyfillSize(double[] verts, int[] holeSizes, double[] holeVerts, int res);
     native void polyfill(double[] verts, int[] holeSizes, double[] holeVerts, int res, long[] results);
@@ -64,6 +65,7 @@ final class NativeMethods {
     native double edgeLengthKm(int res);
     native double edgeLengthM(int res);
     native long numHexagons(int res);
+    native void getRes0Indexes(long[] indexes);
 
     native boolean h3IndexesAreNeighbors(long a, long b);
     native long getH3UnidirectionalEdge(long a, long b);

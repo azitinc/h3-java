@@ -18,8 +18,7 @@
 # Arguments: [git-remote] [git-ref] [use-docker]
 # git-remote - The git remote to pull from. An existing cloned repository
 #              will not be deleted if a new remote is specified.
-# git-ref    - A specific git ref to build, or "default" to use
-#              the H3 version (next argument) to determine the tag.
+# git-ref    - Specific git ref of H3 to build.
 # use-docker - "true" to perform cross compilation via Docker, "false" to
 #              skip that step.
 #
@@ -50,8 +49,6 @@ git fetch origin --tags
 echo Using revision "$GIT_REVISION"
 git checkout "$GIT_REVISION"
 
-H3_SRC_ROOT="$(pwd)"
-
 popd # h3
 
 #
@@ -76,7 +73,6 @@ popd # build
 
 cmake -DUSE_NATIVE_JNI=ON \
     -DBUILD_SHARED_LIBS=ON \
-    "-DH3_SRC_ROOT=$H3_SRC_ROOT" \
     "-DH3_BUILD_ROOT=$H3_BUILD_ROOT" \
     -DCMAKE_BUILD_TYPE=Release \
     ../../src/main/c/h3-java
